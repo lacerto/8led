@@ -2,10 +2,6 @@
 #include <wiringPi.h>
 #include "gpio.h"
 
-void set_pin_mode(int pin, int mode) {
-    pinMode(pin, mode);
-}
-
 /* Setup wiringPi and make the pins outputs. */
 void setup_gpio(int *pins, int pin_number) {
     int i;
@@ -15,7 +11,7 @@ void setup_gpio(int *pins, int pin_number) {
 	// All pins are outputs
 	for (i=0; i<pin_number; i++) {
 	    //printf("Pin %d -> output\n", pins[i]);
-	    set_pin_mode(pins[i], OUTPUT);
+	    pinMode(pins[i], OUTPUT);
 	}
 	printf("Setup complete.\n");
 }
@@ -41,16 +37,18 @@ void pin_high(int pin) {
     digitalWrite(pin, HIGH);
 }
 
+/* Set the mode of a pin to output. */
 void set_pin_output(int pin) {
-    set_pin_mode(pin, OUTPUT);
+    pinMode(pin, OUTPUT);
 }
 
+/* Set the mode of a pin to PWM output. */
 void set_pin_pwm_output (int pin) {
-    set_pin_mode(pin, PWM_OUTPUT);
+    pinMode(pin, PWM_OUTPUT);
 }
 
-/* Set the PWM value for a pine.
-   The Pi has only one channel for hardware PWM output: PIN 1.
+/* Set the PWM value for a pin.
+   The RPi has only one channel for hardware PWM output: PIN 1.
 */
 void set_pwm_value(int pin, int value) {
     pwmWrite(pin, value);

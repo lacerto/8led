@@ -12,11 +12,13 @@ int select_mode(void);
 int get_delay();
 
 int main(void) {
+    // Pins connected to the LEDs.
     //int pins[PIN_NUMBER] = { 0, 1, 2, 3, 4, 5, 6, 7 };
     int pins[PIN_NUMBER] = { 7, 6, 5, 4, 3, 2, 1, 0 };
     int delay_value;
     int mode;
 
+    // Setup wiringPi and set all the pins outputs.
     setup_gpio(pins, PIN_NUMBER);
 
     mode = select_mode();
@@ -37,6 +39,7 @@ int main(void) {
             return EXIT_FAILURE;
     }
 
+    // Switch off all LEDs.
     cleanup_gpio(pins, PIN_NUMBER);
 
     return EXIT_SUCCESS;
@@ -68,7 +71,7 @@ int get_delay() {
     printf("Delay [ms]: ");
     scanf_retval = scanf("%d", &delay_value);
     if (scanf_retval != 1) {
-        printf("Input error!\n");
+        printf("Input error!\nUsing default delay: %d ms\n", DELAY_DEFAULT);
         return DELAY_DEFAULT;
     }
 
