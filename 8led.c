@@ -29,6 +29,9 @@ int main(void) {
             delay_value = get_delay();
             flowing_lights(pins, PIN_NUMBER, delay_value);
             break;
+        case 3:
+            breathing_led();
+            break;
         default:
             printf("Mode does not exist.\n");
             return EXIT_FAILURE;
@@ -47,9 +50,10 @@ int select_mode(void) {
         "Modes:\n"
         "\t1: binary counter\n"
         "\t2: flowing lights\n"
+        "\t3: breathing LED\n"
         "Select: "
     );
-    retval = scanf("%[12]", mode_string);
+    retval = scanf("%[123]", mode_string);
     if (retval != 1) {
         return -1;
     } else {
