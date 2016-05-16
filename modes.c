@@ -8,7 +8,7 @@
 
 typedef void (*sighandler_t)(int);
 
-static volatile char running = 1;
+static volatile sig_atomic_t running = 1;
 
 /* Interrupt signal handler. */
 void sigint_handler(int signum) {
@@ -26,10 +26,15 @@ void binary_counter(int *pins, int pin_number, int delay_value) {
     int pow2;
     // Max value that can be displayed.
     int mask = ((int) pow(2, pin_number) - 1);
-    sighandler_t original_handler;
+    struct sigaction new_action;
+    struct sigaction old_action;
 
     // Set the interrupt signal handler. Save the original handler.
-    original_handler = signal(SIGINT, sigint_handler);
+    new_action.sa_handler = sigint_handler;
+    sigemptyset(&new_action.sa_mask);
+    new_action.sa_flags = 0;
+
+    sigaction(SIGINT, &new_action, &old_action);
 
     printf("Press C-c to exit.\n");
     printf("Counting...\n");
@@ -57,17 +62,22 @@ void binary_counter(int *pins, int pin_number, int delay_value) {
     }
 
     // Restore the original interrupt handler.
-    signal(SIGINT, original_handler);
+    sigaction(SIGINT, &old_action, NULL);
 }
 
 /* Shows a flowing light. */
 void flowing_lights(int *pins, int pin_number, int delay_value) {
     int current_pin = 0;
     int direction = 1;
-    sighandler_t original_handler;
+    struct sigaction new_action;
+    struct sigaction old_action;
 
     // Set the interrupt signal handler. Save the original handler.
-    original_handler = signal(SIGINT, sigint_handler);
+    new_action.sa_handler = sigint_handler;
+    sigemptyset(&new_action.sa_mask);
+    new_action.sa_flags = 0;
+
+    sigaction(SIGINT, &new_action, &old_action);
 
 	blink_all(pins, pin_number, delay_value, BLINK_REPEAT);
 
@@ -91,7 +101,7 @@ void flowing_lights(int *pins, int pin_number, int delay_value) {
     }
 
     // Restore the original interrupt handler.
-    signal(SIGINT, original_handler);
+    sigaction(SIGINT, &old_action, NULL);
 }
 
 /* Gradually changes the brightness of a LED using PWM. */
@@ -99,10 +109,15 @@ void breathing_led(void) {
     int i = 0;
     int direction = 1;
     const int pwm_pin = 1; // The RPi has hardware PWM support only for pin 1.
-    sighandler_t original_handler;
+    struct sigaction new_action;
+    struct sigaction old_action;
 
     // Set the interrupt signal handler. Save the original handler.
-    original_handler = signal(SIGINT, sigint_handler);
+    new_action.sa_handler = sigint_handler;
+    sigemptyset(&new_action.sa_mask);
+    new_action.sa_flags = 0;
+
+    sigaction(SIGINT, &new_action, &old_action);
 
     printf("Press C-c to exit.\n");
     printf("Looping...\n");
@@ -129,7 +144,7 @@ void breathing_led(void) {
     set_pin_output(pwm_pin);
 
     // Restore the original interrupt handler.
-    signal(SIGINT, original_handler);
+    sigaction(SIGINT, &old_action, NULL);
 }
 
 /* Switch all LEDs on and off. */

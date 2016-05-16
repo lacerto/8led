@@ -12,6 +12,7 @@ void setup_gpio(int *pins, int pin_number) {
 	for (i=0; i<pin_number; i++) {
 	    //printf("Pin %d -> output\n", pins[i]);
 	    pinMode(pins[i], OUTPUT);
+	    digitalWrite(pins[i], HIGH);
 	}
 	printf("Setup complete.\n");
 }
