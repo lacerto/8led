@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <ncurses.h>
 #include <menu.h>
 #include "gpio.h"
@@ -24,19 +25,41 @@ int process_selected_item(int *pins, int item_idx);
 int select_mode(void);
 int get_delay();
 
-int main(void) {
-    // Pins connected to the LEDs.
-    int pins[PIN_NUMBER] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-    //int pins[PIN_NUMBER] = { 7, 6, 5, 4, 3, 2, 1, 0 };
-
+int main(int argc, char **argv) {
+    // Pins connected to the LEDs. Use the Broadcom numbering.
+    int pins[PIN_NUMBER] = { 17, 18, 27, 22, 23, 24, 25, 4 };
     ITEM **menu_items;
     ITEM *curr_item;
     MENU *main_menu;
+    WINDOW *main_menu_win;
+    WINDOW *main_menu_subwin;
+    WINDOW *msg_win;
     int item_count;
     int i;
     int process_events;
     int ch;
     int cursor_visibility;
+    int use_sys_mode = 0;
+    uid_t euid;
+
+    opterr = 0;
+    while ((ch = getopt(argc, argv, "s")) != -1) {
+        if (ch == 's') {
+            use_sys_mode = 1;
+        }
+    }
+
+    if (!use_sys_mode) {
+        euid = geteuid();
+        if (euid != 0) {
+            printf("Without the -s option, this program "
+                    "must be run with root privileges.\n");
+            return EXIT_FAILURE;
+        }
+    }
+
+    // Setup wiringPi and set all the pins outputs.
+    setup_gpio(pins, PIN_NUMBER, use_sys_mode);
 
     // Initialize ncurses.
     initscr();
@@ -53,18 +76,33 @@ int main(void) {
     }
     menu_items[item_count] = (ITEM*) NULL;
 
+    if (use_sys_mode) {
+        // PWM does not work in sys mode (see pwmWrite() documentation),
+        // so make the breathing led menu item not selectable.
+        item_opts_off(menu_items[2], O_SELECTABLE);
+    }
+
+    // Create windows for the menu.
+    main_menu_win = newwin(8, 18, 8, 31);
+    box(main_menu_win, 0, 0);
+    mvwprintw(main_menu_win, 1, 7, "MENU");
+	mvwaddch(main_menu_win, 2, 0, ACS_LTEE);
+	mvwhline(main_menu_win, 2, 1, ACS_HLINE, 16);
+	mvwaddch(main_menu_win, 2, 17, ACS_RTEE);
+    keypad(main_menu_win, TRUE);
+    main_menu_subwin = derwin(main_menu_win, 4, 16, 3, 1);
+
     // Create and display the menu.
     main_menu = new_menu(menu_items);
     set_menu_mark(main_menu, "*");
+    set_menu_win(main_menu, main_menu_win);
+    set_menu_sub(main_menu, main_menu_subwin);
     post_menu(main_menu);
-    refresh();
-
-    // Setup wiringPi and set all the pins outputs.
-    setup_gpio(pins, PIN_NUMBER);
+    wrefresh(main_menu_win);
 
     process_events = 1;
     while (process_events) {
-        ch = getch();
+        ch = wgetch(main_menu_win);
         switch (ch) {
             case KEY_DOWN:
                 menu_driver(main_menu, REQ_DOWN_ITEM);
@@ -74,25 +112,31 @@ int main(void) {
                 break;
             case '\n': // normal enter key
             case KEY_ENTER: // enter key on the keypad
-                unpost_menu(main_menu);
-                clear();
-                printw("Press C-c to return to menu.");
-                refresh();
-
                 curr_item = current_item(main_menu);
-                process_events = process_selected_item(
-                    pins, item_index(curr_item)
-                );
 
-                clear();
-                post_menu(main_menu);
-                refresh();
+                // Process only selectable items.
+                if ((item_opts(curr_item) & O_SELECTABLE) == O_SELECTABLE) {
+                    msg_win = newwin(3, 31, 5, 24);
+                    box(msg_win, 0, 0);
+                    mvwprintw(msg_win, 1, 2, "Press C-c to return to menu.");
+                    wrefresh(msg_win);
+
+                    process_events = process_selected_item(
+                        pins, item_index(curr_item)
+                    );
+
+                    wclear(msg_win);
+                    wrefresh(msg_win);
+                    delwin(msg_win);
+                    pos_menu_cursor(main_menu);
+                }
                 break;
             case 'q':
             case 'Q':
                 process_events = 0;
                 break;
         }
+        wrefresh(main_menu_win);
     }
 
     // Switch off all LEDs.

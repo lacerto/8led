@@ -3,10 +3,16 @@
 #include "gpio.h"
 
 /* Setup wiringPi and make the pins outputs. */
-void setup_gpio(int *pins, int pin_number) {
+void setup_gpio(int *pins, int pin_number, int use_sys_mode) {
     int i;
 
-   	wiringPiSetup();
+    // Either mode uses the Broadcom numbering.
+    if (use_sys_mode) {
+        // For the sys mode to work, the pins must be exported (gpio export).
+        wiringPiSetupSys();
+    } else {
+        wiringPiSetupGpio();
+    }
 
 	// All pins are outputs
 	for (i=0; i<pin_number; i++) {

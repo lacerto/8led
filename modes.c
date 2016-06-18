@@ -111,11 +111,17 @@ void flowing_lights(int *pins, int pin_number, int delay_value) {
     sigaction(SIGINT, &old_action, NULL);
 }
 
-/* Gradually changes the brightness of a LED using PWM. */
+/*
+    Gradually changes the brightness of a LED using PWM.
+    This mode does not work when using the sys mode of wiringPi
+    (sys/class/gpio interface). See the wiringPi documentation
+    of pwmWrite().
+*/
 void breathing_led(void) {
     int i = 0;
     int direction = 1;
-    const int pwm_pin = 1; // The RPi has hardware PWM support only for pin 1.
+    // The RPi has hardware PWM support only for pin 1 (wPi) / 18 (BCM).
+    const int pwm_pin = 18; // use the Broadcom GPIO pin number (see setup_gpio)
     struct sigaction new_action;
     struct sigaction old_action;
 
