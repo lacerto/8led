@@ -14,7 +14,7 @@ void setup_gpio(int *pins, int pin_number) {
 	    pinMode(pins[i], OUTPUT);
 	    digitalWrite(pins[i], HIGH);
 	}
-	printf("Setup complete.\n");
+	//printf("Setup complete.\n");
 }
 
 /* Set all pins to high level. */
@@ -25,7 +25,7 @@ void cleanup_gpio(int *pins, int pin_number) {
 	    digitalWrite(pins[i], HIGH);
 	}
 
-    printf("Cleanup complete.\n");
+    //printf("Cleanup complete.\n");
 }
 
 /* Set a single pin to low level. */

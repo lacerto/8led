@@ -12,7 +12,7 @@ static volatile sig_atomic_t running = 1;
 
 /* Interrupt signal handler. */
 void sigint_handler(int signum) {
-    printf("\nInterrupt signal caught.\n");
+    //printf("\nInterrupt signal caught.\n");
     running = 0;
 }
 
@@ -36,8 +36,8 @@ void binary_counter(int *pins, int pin_number, int delay_value) {
 
     sigaction(SIGINT, &new_action, &old_action);
 
-    printf("Press C-c to exit.\n");
-    printf("Counting...\n");
+    //printf("Press C-c to exit.\n");
+    //printf("Counting...\n");
 
     while (running) {
         // Light only those LEDs that correspond to the
@@ -60,6 +60,7 @@ void binary_counter(int *pins, int pin_number, int delay_value) {
             blink_all(pins, pin_number, delay_value, 3);
         }
     }
+    running = 1;
 
     // Restore the original interrupt handler.
     sigaction(SIGINT, &old_action, NULL);
@@ -81,8 +82,8 @@ void flowing_lights(int *pins, int pin_number, int delay_value) {
 
 	blink_all(pins, pin_number, delay_value, BLINK_REPEAT);
 
-    printf("Press C-c to exit.\n");
-    printf("Looping...\n");
+    //printf("Press C-c to exit.\n");
+    //printf("Looping...\n");
 
     while (running) {
        pin_low(pins[current_pin]); // LED on
@@ -99,6 +100,7 @@ void flowing_lights(int *pins, int pin_number, int delay_value) {
            direction = 1;
        }
     }
+    running = 1;
 
     // Restore the original interrupt handler.
     sigaction(SIGINT, &old_action, NULL);
@@ -119,8 +121,8 @@ void breathing_led(void) {
 
     sigaction(SIGINT, &new_action, &old_action);
 
-    printf("Press C-c to exit.\n");
-    printf("Looping...\n");
+    //printf("Press C-c to exit.\n");
+    //printf("Looping...\n");
 
     // The pin has to be configured as PWM output.
     set_pin_pwm_output(pwm_pin);
@@ -139,6 +141,7 @@ void breathing_led(void) {
             i = 0 + direction;
         }
     }
+    running = 1;
 
     // Set the mode of the pin to normal output.
     set_pin_output(pwm_pin);
@@ -152,7 +155,7 @@ void blink_all(int *pins, int pin_number, int delay_value, int repeat) {
     int i;
     int j;
 
-    printf("All LEDs are blinking %d times.\n", repeat);
+    //printf("All LEDs are blinking %d times.\n", repeat);
 
     for (i=0; i<repeat; i++) {
         for (j=0; j<pin_number; j++) {
