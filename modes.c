@@ -62,6 +62,11 @@ void binary_counter(int *pins, int pin_number, int delay_value) {
     }
     running = 1;
 
+    // Reset the LEDs.
+	for (i=0; i<pin_number; i++) {
+	    pin_high(pins[i]);
+	}
+
     // Restore the original interrupt handler.
     sigaction(SIGINT, &old_action, NULL);
 }

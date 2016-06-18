@@ -1,5 +1,5 @@
 8led: 8led.o gpio.o modes.o
-	gcc -o $@ $^ -lwiringPi -lm
+	gcc -o $@ $^ -lwiringPi -lm -lncurses -lmenu
 
 8led.o: 8led.c gpio.h modes.h
 	gcc -c $<
