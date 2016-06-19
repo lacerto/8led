@@ -21,8 +21,8 @@ char *menu_item_strings[] =
     "Exit"
 };
 
-int process_selected_item(int *pins, int item_idx);
-int select_mode(void);
+int process_selected_item(int *pins, int pin_number, int item_idx);
+int check_pins_exported(int *pins, int pin_number);
 int get_delay();
 
 int main(int argc, char **argv) {
@@ -54,6 +54,11 @@ int main(int argc, char **argv) {
         if (euid != 0) {
             printf("Without the -s option, this program "
                     "must be run with root privileges.\n");
+            return EXIT_FAILURE;
+        }
+    } else {
+        if (check_pins_exported(pins, PIN_NUMBER) == -1) {
+            printf("Please export the pins first.\n");
             return EXIT_FAILURE;
         }
     }
@@ -122,7 +127,7 @@ int main(int argc, char **argv) {
                     wrefresh(msg_win);
 
                     process_events = process_selected_item(
-                        pins, item_index(curr_item)
+                        pins, PIN_NUMBER, item_index(curr_item)
                     );
 
                     wclear(msg_win);
@@ -154,15 +159,15 @@ int main(int argc, char **argv) {
     return EXIT_SUCCESS;
 }
 
-int process_selected_item(int *pins, int item_idx) {
+int process_selected_item(int *pins, int pin_number, int item_idx) {
     int retval = 1;
 
     switch (item_idx) {
         case 0:
-            binary_counter(pins, PIN_NUMBER, DELAY_DEFAULT);
+            binary_counter(pins, pin_number, DELAY_DEFAULT);
             break;
         case 1:
-            flowing_lights(pins, PIN_NUMBER, DELAY_DEFAULT);
+            flowing_lights(pins, pin_number, DELAY_DEFAULT);
             break;
         case 2:
             breathing_led();
@@ -170,6 +175,29 @@ int process_selected_item(int *pins, int item_idx) {
         case 3:
             retval = 0;
             break;
+    }
+
+    return retval;
+}
+
+int check_pins_exported(int *pins, int pin_number) {
+    const char *path = "/sys/class/gpio/gpio";
+    char pin_name[30];
+    int i;
+    int file_exists;
+    int retval = 0;
+
+    for (i=0; i<PIN_NUMBER; i++) {
+        sprintf(pin_name, "%s%d", path, pins[i]);
+        printf("Checking pin: %s", pin_name);
+        file_exists = access(pin_name, F_OK);
+        if (file_exists == -1) {
+            printf("\t-> not exported!\n");
+            retval = -1;
+            break;
+        } else {
+            printf("\t-> OK\n");
+        }
     }
 
     return retval;
