@@ -17,6 +17,8 @@
 				<Linker>
 					<Add library="wiringPi" />
 					<Add library="m" />
+					<Add library="ncurses" />
+					<Add library="menu" />
 				</Linker>
 			</Target>
 			<Target title="Release">
@@ -24,6 +26,7 @@
 				<Option object_output="obj/Release/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
+				<Option parameters="-s" />
 				<Compiler>
 					<Add option="-O2" />
 				</Compiler>
@@ -31,6 +34,8 @@
 					<Add option="-s" />
 					<Add library="wiringPi" />
 					<Add library="m" />
+					<Add library="ncurses" />
+					<Add library="menu" />
 				</Linker>
 			</Target>
 		</Build>
