@@ -11,7 +11,7 @@ function print_usage {
   echo "Exports the following GPIO pins:"
   echo "${pins[@]}"
   echo "All numbers are Broadcom pin numbers."
-  echo "The following option may be used:"
+  echo "The following options may be used:"
   echo -e "  -u,--unexport\t\tunexport all pins"
   echo -e "\t\t\t  not only the ones exported with this utility"
   echo -e "  -h,--help\t\tdisplay this help and exit"
