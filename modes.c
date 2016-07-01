@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <signal.h>
+#include <ncurses.h>
 #include "gpio.h"
 #include "modes.h"
 
@@ -28,6 +29,7 @@ void binary_counter(int *pins, int pin_number, int delay_value) {
     int mask = ((int) pow(2, pin_number) - 1);
     struct sigaction new_action;
     struct sigaction old_action;
+    WINDOW *win;
 
     // Set the interrupt signal handler. Save the original handler.
     new_action.sa_handler = sigint_handler;
@@ -39,6 +41,15 @@ void binary_counter(int *pins, int pin_number, int delay_value) {
     //printf("Press C-c to exit.\n");
     //printf("Counting...\n");
 
+    win = newwin(10, 32, 7, 24);
+    box(win, 0, 0);
+    mvwprintw(win, 0, (32-18)/2, "> BINARY COUNTER <");
+    mvwprintw(win, 2, 2, "Press C-c to return to menu.");
+    mvwprintw(win, 4, 8, "1");
+    mvwprintw(win, 5, 8, "2 6 3 1");
+    mvwprintw(win, 6, 8, "8 4 2 6 8 4 2 1");
+    wrefresh(win);
+
     while (running) {
         // Light only those LEDs that correspond to the
         // binary value of counter.
@@ -48,17 +59,22 @@ void binary_counter(int *pins, int pin_number, int delay_value) {
             if ((counter & pow2) == pow2)
             {
                 pin_low(pins[i]);
+                wattron(win, A_REVERSE);
+                mvwaddch(win, 7, 22-i*2, ' ');
+                wattroff(win, A_REVERSE);
+                wrefresh(win);
             } else {
                 pin_high(pins[i]);
             }
         }
-        counter++;
-        counter &= mask;
         delay_ms(delay_value);
         // Max value reached, flash all LEDs a few times.
         if (counter == mask) {
             blink_all(pins, pin_number, delay_value, 3);
         }
+        counter++;
+        counter &= mask;
+        mvwhline(win, 7, 8, ' ', 16);
     }
     running = 1;
 
@@ -66,6 +82,9 @@ void binary_counter(int *pins, int pin_number, int delay_value) {
 	for (i=0; i<pin_number; i++) {
 	    pin_high(pins[i]);
 	}
+
+    wclear(win);
+    wrefresh(win);
 
     // Restore the original interrupt handler.
     sigaction(SIGINT, &old_action, NULL);

@@ -7,7 +7,7 @@
 #include "modes.h"
 
 #define PIN_NUMBER 8
-#define DELAY_DEFAULT 100
+#define DELAY_DEFAULT 200
 #define DELAY_MAX 2000
 #define DELAY_MIN 10
 
@@ -23,6 +23,9 @@ char *menu_item_strings[] =
 
 int process_selected_item(int *pins, int pin_number, int item_idx);
 int check_pins_exported(int *pins, int pin_number);
+void show_menu(MENU *menu);
+void hide_menu(MENU *menu);
+void decorate_menu_window(WINDOW *win);
 int get_delay();
 
 int main(int argc, char **argv) {
@@ -33,7 +36,6 @@ int main(int argc, char **argv) {
     MENU *main_menu;
     WINDOW *main_menu_win;
     WINDOW *main_menu_subwin;
-    WINDOW *msg_win;
     int item_count;
     int i;
     int process_events;
@@ -89,11 +91,7 @@ int main(int argc, char **argv) {
 
     // Create windows for the menu.
     main_menu_win = newwin(8, 18, 8, 31);
-    box(main_menu_win, 0, 0);
-    mvwprintw(main_menu_win, 1, 7, "MENU");
-	mvwaddch(main_menu_win, 2, 0, ACS_LTEE);
-	mvwhline(main_menu_win, 2, 1, ACS_HLINE, 16);
-	mvwaddch(main_menu_win, 2, 17, ACS_RTEE);
+    decorate_menu_window(main_menu_win);
     keypad(main_menu_win, TRUE);
     main_menu_subwin = derwin(main_menu_win, 4, 16, 3, 1);
 
@@ -121,19 +119,11 @@ int main(int argc, char **argv) {
 
                 // Process only selectable items.
                 if ((item_opts(curr_item) & O_SELECTABLE) == O_SELECTABLE) {
-                    msg_win = newwin(3, 31, 5, 24);
-                    box(msg_win, 0, 0);
-                    mvwprintw(msg_win, 1, 2, "Press C-c to return to menu.");
-                    wrefresh(msg_win);
-
+                    hide_menu(main_menu);
                     process_events = process_selected_item(
                         pins, PIN_NUMBER, item_index(curr_item)
                     );
-
-                    wclear(msg_win);
-                    wrefresh(msg_win);
-                    delwin(msg_win);
-                    pos_menu_cursor(main_menu);
+                    show_menu(main_menu);
                 }
                 break;
             case 'q':
@@ -157,6 +147,29 @@ int main(int argc, char **argv) {
     endwin();
 
     return EXIT_SUCCESS;
+}
+
+void show_menu(MENU *menu) {
+    WINDOW *win = menu_win(menu);
+    post_menu(menu);
+    pos_menu_cursor(menu);
+    decorate_menu_window(win);
+    wrefresh(win);
+}
+
+void hide_menu(MENU *menu) {
+    WINDOW *win = menu_win(menu);
+    unpost_menu(menu);
+    wclear(win);
+    wrefresh(win);
+}
+
+void decorate_menu_window(WINDOW *win) {
+    box(win, 0, 0);
+    mvwprintw(win, 1, 7, "MENU");
+	mvwaddch(win, 2, 0, ACS_LTEE);
+	mvwhline(win, 2, 1, ACS_HLINE, 16);
+	mvwaddch(win, 2, 17, ACS_RTEE);
 }
 
 int process_selected_item(int *pins, int pin_number, int item_idx) {
