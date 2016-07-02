@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <ncurses.h>
 #include <menu.h>
@@ -25,6 +26,8 @@ int process_selected_item(int *pins, int pin_number, int item_idx);
 int check_pins_exported(int *pins, int pin_number);
 void show_menu(MENU *menu);
 void hide_menu(MENU *menu);
+WINDOW *create_menu_windows(MENU *menu);
+void free_menu_windows(MENU *menu);
 void decorate_menu_window(WINDOW *win);
 int get_delay();
 
@@ -35,7 +38,6 @@ int main(int argc, char **argv) {
     ITEM *curr_item;
     MENU *main_menu;
     WINDOW *main_menu_win;
-    WINDOW *main_menu_subwin;
     int item_count;
     int i;
     int process_events;
@@ -89,17 +91,10 @@ int main(int argc, char **argv) {
         item_opts_off(menu_items[2], O_SELECTABLE);
     }
 
-    // Create windows for the menu.
-    main_menu_win = newwin(8, 18, 8, 31);
-    decorate_menu_window(main_menu_win);
-    keypad(main_menu_win, TRUE);
-    main_menu_subwin = derwin(main_menu_win, 4, 16, 3, 1);
-
     // Create and display the menu.
     main_menu = new_menu(menu_items);
+    main_menu_win = create_menu_windows(main_menu);
     set_menu_mark(main_menu, "*");
-    set_menu_win(main_menu, main_menu_win);
-    set_menu_sub(main_menu, main_menu_subwin);
     post_menu(main_menu);
     wrefresh(main_menu_win);
 
@@ -141,6 +136,7 @@ int main(int argc, char **argv) {
     for (i=0; i<item_count + 1; i++) {
         free_item(menu_items[i]);
     }
+    free_menu_windows(main_menu);
     free_menu(main_menu);
 
     curs_set(cursor_visibility);
@@ -164,20 +160,64 @@ void hide_menu(MENU *menu) {
     wrefresh(win);
 }
 
+WINDOW *create_menu_windows(MENU *menu) {
+    WINDOW *main_menu_win;
+    WINDOW *main_menu_subwin;
+    int sub_cols;
+    int sub_rows;
+    int win_cols;
+    int win_rows;
+    int sub_x = 1;
+    int sub_y = 3;
+    int win_x;
+    int win_y;
+
+    scale_menu(menu, &sub_rows, &sub_cols);
+    win_rows = sub_rows + 4; //4=upper + lower border + title + line under title
+    win_cols = sub_cols + 2; //2=left + right border
+    win_y = (LINES - win_rows) / 2;
+    win_x = (COLS - win_cols) / 2;
+    main_menu_win = newwin(win_rows, win_cols, win_y, win_x);
+    decorate_menu_window(main_menu_win);
+    keypad(main_menu_win, TRUE);
+    main_menu_subwin = derwin(main_menu_win, sub_rows, sub_cols, sub_y, sub_x);
+    set_menu_win(menu, main_menu_win);
+    set_menu_sub(menu, main_menu_subwin);
+
+    return main_menu_win;
+}
+
+void free_menu_windows(MENU *menu) {
+    WINDOW *win;
+    WINDOW *sub;
+
+    win = menu_win(menu);
+    sub = menu_sub(menu);
+    delwin(sub);
+    delwin(win);
+}
+
 void decorate_menu_window(WINDOW *win) {
+    int rows;
+    int cols;
+    char *title = "MENU";
+
+    getmaxyx(win, rows, cols);
     box(win, 0, 0);
-    mvwprintw(win, 1, 7, "MENU");
+    mvwprintw(win, 1, (cols - strlen(title)) / 2, title);
 	mvwaddch(win, 2, 0, ACS_LTEE);
-	mvwhline(win, 2, 1, ACS_HLINE, 16);
-	mvwaddch(win, 2, 17, ACS_RTEE);
+	mvwhline(win, 2, 1, ACS_HLINE, cols - 2);
+	mvwaddch(win, 2, cols - 1, ACS_RTEE);
 }
 
 int process_selected_item(int *pins, int pin_number, int item_idx) {
     int retval = 1;
+    int delay;
 
     switch (item_idx) {
         case 0:
-            binary_counter(pins, pin_number, DELAY_DEFAULT);
+            delay = get_delay();
+            binary_counter(pins, pin_number, delay);
             break;
         case 1:
             flowing_lights(pins, pin_number, DELAY_DEFAULT);
@@ -217,24 +257,56 @@ int check_pins_exported(int *pins, int pin_number) {
 }
 
 int get_delay() {
+    WINDOW *win;
+    WINDOW *sub;
+    int y;
+    int x;
+    int rows = 3; // borders + 1 input line
+    int cols;
     int delay_value;
     int scanf_retval;
+    char *label = "Delay [ms]: ";
+    int cursor_visibility;
 
-    printf("Delay [ms]: ");
-    scanf_retval = scanf("%d", &delay_value);
+    cols = strlen(label) + 8;
+    y = (LINES - rows) / 2;
+    x = (COLS - cols) / 2;
+    win = newwin(rows, cols, y, x);
+    sub = derwin(win, 1, 5, 1, strlen(label) + 1);
+    keypad(win, TRUE);
+    echo();
+    cursor_visibility = curs_set(1); // cursor visible
+    box(win, 0, 0);
+    mvwprintw(win, 1, 1, label);
+    wrefresh(win);
+    scanf_retval = wscanw(sub, "%d", &delay_value);
     if (scanf_retval != 1) {
-        printf("Input error!\nUsing default delay: %d ms\n", DELAY_DEFAULT);
-        return DELAY_DEFAULT;
+        mvprintw(LINES-1, 0, "Input error! Using default delay: %d ms", DELAY_DEFAULT);
+        getch();
+        clear();
+        refresh();
+        delay_value = DELAY_DEFAULT;
     }
 
     if (delay_value > DELAY_MAX || delay_value < DELAY_MIN) {
-        printf(
-            "Delay value out of bounds: %d <= DELAY <= %d\n"
-            "Using default delay: %d ms\n",
+        mvprintw(
+            LINES-1, 0,
+            "Delay value out of bounds: %d <= DELAY <= %d  "
+            "Using default delay: %d ms",
             DELAY_MIN, DELAY_MAX, DELAY_DEFAULT
         );
+        getch();
+        clear();
+        refresh();
         delay_value = DELAY_DEFAULT;
     }
+
+    wclear(win);
+    wrefresh(win);
+    delwin(sub);
+    delwin(win);
+    noecho();
+    curs_set(cursor_visibility); // restore cursor
 
     return delay_value;
 }

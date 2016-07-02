@@ -85,6 +85,7 @@ void binary_counter(int *pins, int pin_number, int delay_value) {
 
     wclear(win);
     wrefresh(win);
+    delwin(win);
 
     // Restore the original interrupt handler.
     sigaction(SIGINT, &old_action, NULL);
