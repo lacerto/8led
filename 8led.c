@@ -220,7 +220,8 @@ int process_selected_item(int *pins, int pin_number, int item_idx) {
             binary_counter(pins, pin_number, delay);
             break;
         case 1:
-            flowing_lights(pins, pin_number, DELAY_DEFAULT);
+            delay = get_delay();
+            flowing_lights(pins, pin_number, delay);
             break;
         case 2:
             breathing_led();

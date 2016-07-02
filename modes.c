@@ -65,6 +65,7 @@ void binary_counter(int *pins, int pin_number, int delay_value) {
                 wrefresh(win);
             } else {
                 pin_high(pins[i]);
+                mvwaddch(win, 7, 22-i*2, ' ');
             }
         }
         delay_ms(delay_value);
@@ -74,7 +75,6 @@ void binary_counter(int *pins, int pin_number, int delay_value) {
         }
         counter++;
         counter &= mask;
-        mvwhline(win, 7, 8, ' ', 16);
     }
     running = 1;
 
@@ -97,6 +97,7 @@ void flowing_lights(int *pins, int pin_number, int delay_value) {
     int direction = 1;
     struct sigaction new_action;
     struct sigaction old_action;
+    WINDOW *win;
 
     // Set the interrupt signal handler. Save the original handler.
     new_action.sa_handler = sigint_handler;
@@ -105,27 +106,43 @@ void flowing_lights(int *pins, int pin_number, int delay_value) {
 
     sigaction(SIGINT, &new_action, &old_action);
 
+    win = newwin(10, 32, 7, 24);
+    box(win, 0, 0);
+    mvwprintw(win, 0, (32-18)/2, "> FLOWING LIGHTS <");
+    mvwprintw(win, 2, 2, "Press C-c to return to menu.");
+    wrefresh(win);
+
 	blink_all(pins, pin_number, delay_value, BLINK_REPEAT);
 
     //printf("Press C-c to exit.\n");
     //printf("Looping...\n");
 
     while (running) {
-       pin_low(pins[current_pin]); // LED on
-       delay_ms(delay_value);
-       pin_high(pins[current_pin]); // LED off
+        pin_low(pins[current_pin]); // LED on
+        wattron(win, A_REVERSE);
+        mvwaddch(win, 7, 22-current_pin*2, ' ');
+        wattroff(win, A_REVERSE);
+        wrefresh(win);
+        mvwaddch(win, 7, 22-current_pin*2, ' ');
 
-       current_pin += direction;
-       if (current_pin == pin_number) {
+        delay_ms(delay_value);
+        pin_high(pins[current_pin]); // LED off
+
+        current_pin += direction;
+        if (current_pin == pin_number) {
            current_pin = pin_number - 2;
            direction = -1;
-       }
-       if (current_pin < 0) {
+        }
+        if (current_pin < 0) {
            current_pin = 1;
            direction = 1;
-       }
+        }
     }
     running = 1;
+
+    wclear(win);
+    wrefresh(win);
+    delwin(win);
 
     // Restore the original interrupt handler.
     sigaction(SIGINT, &old_action, NULL);
