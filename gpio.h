@@ -2,7 +2,9 @@
 #define GPIO_H
 
 /* Setup wiringPi and make the pins outputs. */
-void setup_gpio         (int *pins, int pin_number, int use_sys_mode);
+void setup_gpio         (int *pins, int pin_number,
+                            int use_sys_mode,
+                            int dry_run);
 
 /* Set all pins to high level. */
 void cleanup_gpio       (int *pins, int pin_number);

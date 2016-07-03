@@ -30,6 +30,7 @@ WINDOW *create_menu_windows(MENU *menu);
 void free_menu_windows(MENU *menu);
 void decorate_menu_window(WINDOW *win);
 int get_delay();
+void display_error(const char *title, char *text);
 
 int main(int argc, char **argv) {
     // Pins connected to the LEDs. Use the Broadcom numbering.
@@ -44,34 +45,46 @@ int main(int argc, char **argv) {
     int ch;
     int cursor_visibility;
     int use_sys_mode = 0;
+    int dry_run = 0;
     uid_t euid;
 
     opterr = 0;
-    while ((ch = getopt(argc, argv, "s")) != -1) {
-        if (ch == 's') {
-            use_sys_mode = 1;
+    while ((ch = getopt(argc, argv, "sd")) != -1) {
+        switch (ch) {
+            case 's':
+                use_sys_mode = 1;
+                break;
+            case 'd':
+                dry_run = 1;
+                break;
         }
     }
 
-    if (!use_sys_mode) {
-        euid = geteuid();
-        if (euid != 0) {
-            printf("Without the -s option, this program "
-                    "must be run with root privileges.\n");
-            return EXIT_FAILURE;
-        }
-    } else {
-        if (check_pins_exported(pins, PIN_NUMBER) == -1) {
-            printf("Please export the pins first.\n");
-            return EXIT_FAILURE;
+    if (!dry_run) {
+        if (!use_sys_mode) {
+            euid = geteuid();
+            if (euid != 0) {
+                printf("Without the -s option, this program "
+                        "must be run with root privileges.\n");
+                return EXIT_FAILURE;
+            }
+        } else {
+            if (check_pins_exported(pins, PIN_NUMBER) == -1) {
+                printf("Please export the pins first.\n");
+                return EXIT_FAILURE;
+            }
         }
     }
 
     // Setup wiringPi and set all the pins outputs.
-    setup_gpio(pins, PIN_NUMBER, use_sys_mode);
+    setup_gpio(pins, PIN_NUMBER, use_sys_mode, dry_run);
 
     // Initialize ncurses.
     initscr();
+    start_color();
+    init_pair(1, COLOR_WHITE, COLOR_RED);
+    init_pair(2, COLOR_BLACK, COLOR_CYAN);
+    init_pair(3, COLOR_YELLOW, COLOR_RED);
     noecho();
     cbreak();
     keypad(stdscr, TRUE);
@@ -140,6 +153,8 @@ int main(int argc, char **argv) {
     free_menu(main_menu);
 
     curs_set(cursor_visibility);
+    clear();
+    refresh();
     endwin();
 
     return EXIT_SUCCESS;
@@ -193,6 +208,11 @@ void free_menu_windows(MENU *menu) {
 
     win = menu_win(menu);
     sub = menu_sub(menu);
+    wclear(sub);
+    wclear(win);
+    refresh();
+    wrefresh(sub);
+    wrefresh(win);
     delwin(sub);
     delwin(win);
 }
@@ -267,6 +287,7 @@ int get_delay() {
     int delay_value;
     int scanf_retval;
     char *label = "Delay [ms]: ";
+    char text[255];
     int cursor_visibility;
 
     cols = strlen(label) + 8;
@@ -282,23 +303,18 @@ int get_delay() {
     wrefresh(win);
     scanf_retval = wscanw(sub, "%d", &delay_value);
     if (scanf_retval != 1) {
-        mvprintw(LINES-1, 0, "Input error! Using default delay: %d ms", DELAY_DEFAULT);
-        getch();
-        clear();
-        refresh();
+        sprintf(text, "Using default delay: %d ms\n", DELAY_DEFAULT);
+        display_error(" Input error ", text);
         delay_value = DELAY_DEFAULT;
     }
 
     if (delay_value > DELAY_MAX || delay_value < DELAY_MIN) {
-        mvprintw(
-            LINES-1, 0,
-            "Delay value out of bounds: %d <= DELAY <= %d  "
-            "Using default delay: %d ms",
+        sprintf(
+            text, "Delay value out of bounds: %d <= DELAY <= %d\n"
+            "Using default delay: %d ms\n",
             DELAY_MIN, DELAY_MAX, DELAY_DEFAULT
         );
-        getch();
-        clear();
-        refresh();
+        display_error(" Out of bounds ", text);
         delay_value = DELAY_DEFAULT;
     }
 
@@ -312,3 +328,85 @@ int get_delay() {
     return delay_value;
 }
 
+void display_error(const char *title, char *text) {
+    WINDOW *error;
+    WINDOW *error_sub;
+    int y;
+    int x;
+    int rows = 7;
+    int cols = 0;
+    char *ok = "[ OK ]";
+    chtype background;
+    int cursor_visibility;
+    char *delim = "\n";
+    int lines;
+    int i;
+    char *str[10];
+    size_t len;
+
+    cursor_visibility = curs_set(0);
+
+    str[0] = strtok(text, delim);
+    len = strlen(str[0]);
+    if (len > cols) cols = len;
+    lines = 1;
+    while ((str[lines] = strtok(NULL, delim)) != NULL) {
+        len = strlen(str[lines]);
+        if (len > cols) cols = len;
+        lines++;
+        rows++;
+    }
+
+    cols += 6;
+    y = (LINES - rows) / 2;
+    x = (COLS - cols) / 2;
+
+    error = newwin(rows, cols, y, x);
+    background = getbkgd(error);
+    wbkgd(error, COLOR_PAIR(1));
+
+    rows -= 2;
+    cols -= 2;
+    error_sub = derwin(error, rows, cols, 1, 1);
+    wbkgd(error_sub, COLOR_PAIR(1));
+
+    wattron(error_sub, A_BOLD);
+
+    wattron(error_sub, COLOR_PAIR(1));
+    box(error_sub, 0, 0);
+    mvwaddch(error_sub, 1+lines, 0, ACS_LTEE);
+    mvwhline(error_sub, 1+lines, 1, ACS_HLINE, cols - 2);
+    mvwaddch(error_sub, 1+lines, cols - 1, ACS_RTEE);
+    wattroff(error_sub, COLOR_PAIR(1));
+
+    wattron(error_sub, COLOR_PAIR(3));
+    mvwprintw(error_sub, 0, (cols-strlen(title))/2, title);
+    wattroff(error_sub, COLOR_PAIR(3));
+
+    wattron(error_sub, COLOR_PAIR(1));
+    for (i=0; i<lines; i++) {
+        mvwprintw(error_sub, 1+i, 2, str[i]);
+    }
+    wattroff(error_sub, COLOR_PAIR(1));
+
+    wattron(error_sub, COLOR_PAIR(2));
+    mvwprintw(error_sub, 1+lines+1, (cols-strlen(ok))/2, ok);
+    wattroff(error_sub, COLOR_PAIR(2));
+
+    wattroff(error_sub, A_BOLD);
+
+    refresh();
+    wrefresh(error);
+    wgetch(error);
+
+    wbkgd(error, background);
+    wbkgd(error_sub, background);
+    wclear(error_sub);
+    wclear(error);
+    refresh();
+    wrefresh(error);
+    delwin(error_sub);
+    delwin(error);
+
+    curs_set(cursor_visibility); // restore cursor
+}
